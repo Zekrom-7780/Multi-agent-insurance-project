@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insurance Agent API — Debug Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --text-dim:  #8b949e;
+    --accent:    #58a6ff;
+    --green:     #3fb950;
+    --orange:    #d29922;
+    --red:       #f85149;
+    --yellow:    #e3b341;
+    --blue:      #58a6ff;
+    --purple:    #bc8cff;
+    --radius:    8px;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Header ────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header h1 span { color: var(--text-dim); font-weight: 400; }
+  .health {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .health-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background .3s;
+  }
+  .health-dot.ok   { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .health-dot.fail { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+
+  /* ── Main grid ─────────────────────────────── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .panel:first-child { border-right: 1px solid var(--border); }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .panel-header .badge {
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .badge-idle    { background: #30363d; color: var(--text-dim); }
+  .badge-live    { background: #1a4d2e; color: var(--green); }
+  .badge-closed  { background: #3d2a1a; color: var(--orange); }
+
+  /* ── Scrollable areas ──────────────────────── */
+  .scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    min-height: 0;
+  }
+  .scroll::-webkit-scrollbar { width: 6px; }
+  .scroll::-webkit-scrollbar-track { background: transparent; }
+  .scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Chat messages ─────────────────────────── */
+  .msg {
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.55;
+    max-width: 85%;
+    word-wrap: break-word;
+  }
+  .msg-user {
+    background: #1a3a5c;
+    margin-left: auto;
+    border-bottom-right-radius: 2px;
+  }
+  .msg-bot {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 2px;
+  }
+  .msg-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .msg-user .msg-label { color: var(--accent); }
+  .msg-trace {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Input area ────────────────────────────── */
+  .input-area {
+    padding: 12px 16px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+  }
+  .input-row input[type="text"] {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-row input:focus { border-color: var(--accent); }
+  button {
+    padding: 8px 18px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:hover { opacity: 0.85; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-send { background: var(--accent); color: #fff; }
+  .btn-new  { background: var(--border); color: var(--text); margin-top: 8px; width: 100%; }
+  .btn-clear { background: transparent; color: var(--text-dim); border: 1px solid var(--border); font-size: 11px; padding: 4px 12px; }
+
+  /* ── Optional fields ───────────────────────── */
+  .opt-toggle {
+    font-size: 12px;
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .opt-toggle::before {
+    content: '\25B8';
+    display: inline-block;
+    transition: transform .2s;
+  }
+  .opt-toggle.open::before { transform: rotate(90deg); }
+  .opt-fields {
+    display: none;
+    margin-top: 8px;
+    gap: 6px;
+  }
+  .opt-fields.open { display: flex; flex-wrap: wrap; }
+  .opt-fields label {
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 120px;
+  }
+  .opt-fields input {
+    padding: 6px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    outline: none;
+  }
+  .opt-fields input:focus { border-color: var(--accent); }
+
+  /* ── Trace events ──────────────────────────── */
+  .trace-event {
+    margin-bottom: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    border-left: 3px solid var(--border);
+    background: var(--surface);
+  }
+  .trace-event.from-summary {
+    opacity: 0.65;
+    border-left-style: dashed;
+  }
+  .trace-ts {
+    color: var(--text-dim);
+    font-size: 10px;
+    margin-right: 6px;
+  }
+  .trace-agent {
+    font-weight: 500;
+    margin-right: 4px;
+  }
+  .trace-detail { color: var(--text-dim); }
+
+  /* Color coding */
+  .trace-routing   { border-left-color: var(--green); }
+  .trace-routing  .trace-agent { color: var(--green); }
+  .trace-tool      { border-left-color: var(--orange); }
+  .trace-tool     .trace-agent { color: var(--orange); }
+  .trace-react     { border-left-color: var(--blue); }
+  .trace-react    .trace-agent { color: var(--blue); }
+  .trace-error     { border-left-color: var(--red); }
+  .trace-error    .trace-agent { color: var(--red); }
+  .trace-escalation { border-left-color: var(--yellow); }
+  .trace-escalation .trace-agent { color: var(--yellow); }
+  .trace-faq       { border-left-color: var(--purple); }
+  .trace-faq      .trace-agent { color: var(--purple); }
+  .trace-rewrite   { border-left-color: var(--text-dim); }
+
+  .trace-empty {
+    color: var(--text-dim);
+    font-style: italic;
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+
+  /* ── Conv ID ────────────────────────────────── */
+  .conv-id {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    padding: 0 16px 4px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Insurance Agent API <span>— Debug Dashboard</span></h1>
+  <div class="health">
+    <div class="health-dot" id="healthDot"></div>
+    <span id="healthText">Checking...</span>
+  </div>
+</header>
+
+<div class="grid">
+  <!-- ── Chat Panel ──────────────────── -->
+  <div class="panel">
+    <div class="panel-header">
+      Chat
+      <span id="convBadge" class="badge badge-idle">No conversation</span>
+    </div>
+    <div class="conv-id" id="convId" style="display:none"></div>
+    <div class="scroll" id="chatScroll"></div>
+    <div class="input-area">
+      <div class="input-row">
+        <input type="text" id="msgInput" placeholder="Ask about policies, billing, claims..." autocomplete="off">
+        <button class="btn-send" id="sendBtn">Send</button>
+      </div>
+      <div class="opt-toggle" id="optToggle">Optional fields</div>
+      <div class="opt-fields" id="optFields">
+        <label>customer_id <input type="text" id="custId" placeholder="CUST00001"></label>
+        <label>policy_number <input type="text" id="polNum" placeholder="POL000001"></label>
+        <label>claim_id <input type="text" id="clmId" placeholder="CLM000001"></label>
+      </div>
+      <button class="btn-new" id="newBtn">New Conversation</button>
+    </div>
+  </div>
+
+  <!-- ── Trace Panel ─────────────────── -->
+  <div class="panel">
+    <div class="panel-header">
+      Agent Trace
+      <span style="display:flex;align-items:center;gap:8px">
+        <span id="sseBadge" class="badge badge-idle">Idle</span>
+        <button class="btn-clear" id="clearBtn">Clear</button>
+      </span>
+    </div>
+    <div class="scroll" id="traceScroll">
+      <div class="trace-empty" id="traceEmpty">Send a message to see agent events here</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // ── DOM refs ──────────────────────────────
+  const $ = id => document.getElementById(id);
+  const chatScroll  = $('chatScroll');
+  const traceScroll = $('traceScroll');
+  const msgInput    = $('msgInput');
+  const sendBtn     = $('sendBtn');
+  const newBtn      = $('newBtn');
+  const clearBtn    = $('clearBtn');
+  const healthDot   = $('healthDot');
+  const healthText  = $('healthText');
+  const convBadge   = $('convBadge');
+  const convIdEl    = $('convId');
+  const sseBadge    = $('sseBadge');
+  const traceEmpty  = $('traceEmpty');
+  const optToggle   = $('optToggle');
+  const optFields   = $('optFields');
+
+  let conversationId = null;
+  let eventSource    = null;
+  let sseTimer       = null;
+  let sending        = false;
+
+  // ── Optional fields toggle ────────────────
+  optToggle.addEventListener('click', () => {
+    optToggle.classList.toggle('open');
+    optFields.classList.toggle('open');
+  });
+
+  // ── Health polling ────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch('/health');
+      const d = await r.json();
+      healthDot.className = 'health-dot ok';
+      healthText.textContent = 'Health: OK  v' + (d.version || '?');
+    } catch {
+      healthDot.className = 'health-dot fail';
+      healthText.textContent = 'Health: Unreachable';
+    }
+  }
+  checkHealth();
+  setInterval(checkHealth, 30000);
+
+  // ── Helpers ───────────────────────────────
+  function scrollBottom(el) {
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+  }
+
+  function timeStr(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // ── Chat messages ─────────────────────────
+  function addChatMsg(role, text, trace) {
+    const div = document.createElement('div');
+    div.className = 'msg ' + (role === 'user' ? 'msg-user' : 'msg-bot');
+    let html = '<div class="msg-label">' + (role === 'user' ? 'You' : 'Agent') + '</div>';
+    html += '<div>' + escHtml(text) + '</div>';
+    if (trace && trace.length) {
+      html += '<div class="msg-trace">';
+      trace.forEach(t => {
+        html += escHtml(t.agent) + ' ' + escHtml(t.action);
+        if (t.detail) html += ' — ' + escHtml(t.detail.slice(0, 100));
+        html += '<br>';
+      });
+      html += '</div>';
+    }
+    div.innerHTML = html;
+    chatScroll.appendChild(div);
+    scrollBottom(chatScroll);
+  }
+
+  // ── Trace events ──────────────────────────
+  function traceClass(type) {
+    if (type === 'routing_decision')  return 'trace-routing';
+    if (type === 'tool_executed' || type === 'tool_not_found') return 'trace-tool';
+    if (type === 'escalation_started') return 'trace-escalation';
+    if (type === 'faq_retrieved')     return 'trace-faq';
+    if (type === 'rewrite_started')   return 'trace-rewrite';
+    if (type.startsWith('react_'))    return 'trace-react';
+    return '';
+  }
+
+  function formatPayload(type, p) {
+    switch (type) {
+      case 'routing_decision':
+        return 'route \u2192 ' + (p.next_agent || '?') + (p.task ? '  \u2014 ' + p.task : '');
+      case 'react_step_start':
+        return 'step ' + p.step + ' starting';
+      case 'react_step_parsed':
+        return 'step ' + p.step + '  method=' + (p.parse_method || '?') +
+               (p.action ? '  action=' + p.action : '') +
+               (p.has_final_answer ? '  [FINAL]' : '');
+      case 'react_final_answer':
+        return 'final answer (' + (p.answer_length || 0) + ' chars)';
+      case 'tool_executed':
+        return 'tool: ' + (p.tool || '?') +
+               (p.success ? ' OK' : ' FAIL' + (p.error ? ' — ' + p.error : ''));
+      case 'tool_not_found':
+        return 'tool not found: ' + (p.tool || '?');
+      case 'escalation_started':
+        return 'escalation triggered';
+      case 'faq_retrieved':
+        return 'FAQ results: ' + (p.n_results || 0);
+      case 'rewrite_started':
+        return 'polishing final answer';
+      default:
+        return JSON.stringify(p);
+    }
+  }
+
+  function addTraceEvent(agentName, eventType, payload, timestamp, fromSummary) {
+    if (traceEmpty) traceEmpty.remove();
+    const div = document.createElement('div');
+    let cls = 'trace-event ' + traceClass(eventType);
+    if (fromSummary) cls += ' from-summary';
+    div.className = cls;
+
+    const ts = timeStr(timestamp);
+    div.innerHTML =
+      '<span class="trace-ts">' + escHtml(ts) + '</span>' +
+      '<span class="trace-agent">' + escHtml(agentName || '?') + '</span> ' +
+      '<span class="trace-detail">' + escHtml(formatPayload(eventType, payload || {})) + '</span>';
+    traceScroll.appendChild(div);
+    scrollBottom(traceScroll);
+  }
+
+  // ── SSE ───────────────────────────────────
+  function sseConnect(convId) {
+    sseDisconnect();
+    sseBadge.textContent = 'Connected';
+    sseBadge.className = 'badge badge-live';
+
+    eventSource = new EventSource('/chat/' + convId + '/events');
+
+    eventSource.addEventListener('routing_decision', e => handleSSE(e));
+    eventSource.addEventListener('react_step_start', e => handleSSE(e));
+    eventSource.addEventListener('react_step_parsed', e => handleSSE(e));
+    eventSource.addEventListener('react_final_answer', e => handleSSE(e));
+    eventSource.addEventListener('tool_executed', e => handleSSE(e));
+    eventSource.addEventListener('tool_not_found', e => handleSSE(e));
+    eventSource.addEventListener('escalation_started', e => handleSSE(e));
+    eventSource.addEventListener('faq_retrieved', e => handleSSE(e));
+    eventSource.addEventListener('rewrite_started', e => handleSSE(e));
+    eventSource.addEventListener('end', () => sseDisconnect());
+
+    eventSource.onerror = () => {
+      // SSE connection lost — may be normal end-of-stream
+      sseDisconnect();
+    };
+  }
+
+  function handleSSE(e) {
+    try {
+      const d = JSON.parse(e.data);
+      addTraceEvent(d.agent_name, d.event_type, d.payload, d.timestamp, false);
+    } catch { /* ignore bad frames */ }
+  }
+
+  function sseDisconnect() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+    if (sseTimer) {
+      clearTimeout(sseTimer);
+      sseTimer = null;
+    }
+    sseBadge.textContent = 'Idle';
+    sseBadge.className = 'badge badge-idle';
+  }
+
+  function sseScheduleClose(ms) {
+    if (sseTimer) clearTimeout(sseTimer);
+    sseTimer = setTimeout(sseDisconnect, ms);
+  }
+
+  // ── Send message ──────────────────────────
+  async function send() {
+    const text = msgInput.value.trim();
+    if (!text || sending) return;
+
+    sending = true;
+    sendBtn.disabled = true;
+    msgInput.value = '';
+    addChatMsg('user', text);
+
+    const body = { message: text };
+    if (conversationId) body.conversation_id = conversationId;
+
+    const custId = $('custId').value.trim();
+    const polNum = $('polNum').value.trim();
+    const clmId  = $('clmId').value.trim();
+    if (custId) body.customer_id   = custId;
+    if (polNum) body.policy_number = polNum;
+    if (clmId)  body.claim_id      = clmId;
+
+    try {
+      const r = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+
+      if (!r.ok) {
+        addChatMsg('bot', 'Error: ' + (d.detail || d.error || r.statusText));
+        return;
+      }
+
+      // Track conversation
+      if (d.conversation_id && d.conversation_id !== conversationId) {
+        conversationId = d.conversation_id;
+        convBadge.textContent = conversationId.slice(0, 8) + '...';
+        convBadge.className = 'badge badge-live';
+        convIdEl.textContent = 'Conv: ' + conversationId;
+        convIdEl.style.display = '';
+
+        // Connect SSE now that we have a conversation id
+        sseConnect(conversationId);
+      }
+
+      // Show bot response
+      addChatMsg('bot', d.message || '(no response)', d.agent_trace);
+
+      // Also add agent_trace entries to trace panel (summary, from /chat response)
+      if (d.agent_trace) {
+        d.agent_trace.forEach(t => {
+          // Map trace action to a pseudo event type for color coding
+          let evType = 'react_step_parsed';
+          if (t.action === 'route') evType = 'routing_decision';
+          else if (t.action === 'escalate') evType = 'escalation_started';
+          else if (t.action === 'rewrite') evType = 'rewrite_started';
+          addTraceEvent(t.agent, evType, { detail: t.detail }, t.timestamp, true);
+        });
+      }
+
+      // Schedule SSE close (no backend "end" event guaranteed)
+      sseScheduleClose(5000);
+
+    } catch (err) {
+      addChatMsg('bot', 'Network error: ' + err.message);
+    } finally {
+      sending = false;
+      sendBtn.disabled = false;
+      msgInput.focus();
+    }
+  }
+
+  // ── New conversation ──────────────────────
+  function newConversation() {
+    conversationId = null;
+    sseDisconnect();
+    chatScroll.innerHTML = '';
+    convBadge.textContent = 'No conversation';
+    convBadge.className = 'badge badge-idle';
+    convIdEl.style.display = 'none';
+    msgInput.focus();
+  }
+
+  // ── Wire up events ────────────────────────
+  sendBtn.addEventListener('click', send);
+  msgInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+  newBtn.addEventListener('click', newConversation);
+  clearBtn.addEventListener('click', () => {
+    traceScroll.innerHTML = '<div class="trace-empty" id="traceEmpty">Trace cleared</div>';
+  });
+
+  msgInput.focus();
+})();
+</script>
+</body>
+</html>
